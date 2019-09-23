@@ -10,6 +10,11 @@ __pycache__/
 credentials.json
 token.pickle
 
+#Folders
+Images/
+Saturday/
+
+
 #Images and test files
 *.png
 *.jpg
