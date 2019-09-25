@@ -9,6 +9,7 @@ from google.auth.transport.requests import Request
 from pydrive.drive import GoogleDrive
 from pydrive.auth import GoogleAuth
 
+from urllib.parse import urlparse, parse_qs
 
 
 # If modifying these scopes, delete the file token.pickle.
@@ -21,23 +22,29 @@ SAMPLE_RANGE_NAME = 'Лист1!A3:H14'
 
 
 def get_id_from_google_sheet_formula(string):
-    string_parsing = string.split('"')
-    base_url, id = string_parsing[1].split("=") 
-    return id
+    url = string.split('"')[1]  
+    parsed_url = urlparse(url)
+    if parsed_url.query is not '': 
+        query_dict = parse_qs(parsed_url.query)
+        id = query_dict.get("id")
+        if id:
+            return id[0]
 
 
 def download_image_and_text(drive, image_data, text_data, folder):
 #The column number starts at 0    
     image_id = get_id_from_google_sheet_formula(image_data)
-    image_file_obj = drive.CreateFile({"id": image_id})
-    image_file_obj.GetContentFile(f"{folder}/{image_file_obj['title']}")
+    if image_id:
+        image_file_obj = drive.CreateFile({"id": image_id})
+        image_file_obj.GetContentFile(f"{folder}/{image_file_obj['title']}")
 
     text_id = get_id_from_google_sheet_formula(text_data)
-    text_file_obj = drive.CreateFile({"id": text_id})
-    text_file_obj.GetContentFile(
-        f"{folder}/{text_file_obj['title']}",
-        'text/plain'
-    )
+    if text_id:
+        text_file_obj = drive.CreateFile({"id": text_id})
+        text_file_obj.GetContentFile(
+            f"{folder}/{text_file_obj['title']}",
+            'text/plain'
+        )
     return True
 
 
@@ -90,7 +97,6 @@ def main():
             print(day, is_done)
             if day == "суббота" and is_done == "нет":
                 print("Нужно опубликовать")
-                print(download_image_and_text(image_data, text_data, "Saturday"))      
                 print(download_image_and_text(drive, image_data, text_data, "Saturday"))      
         
 
