@@ -91,6 +91,7 @@ def main():
             if day == "суббота" and is_done == "нет":
                 print("Нужно опубликовать")
                 print(download_image_and_text(image_data, text_data, "Saturday"))      
+                print(download_image_and_text(drive, image_data, text_data, "Saturday"))      
         
 
 
