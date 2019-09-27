@@ -34,6 +34,21 @@ def get_id_from_google_sheet_formula(string):
             return id[0]
 
 
+def update_value_in_spreadsheet(service, values, range_name, spreadsheet_id):
+    # values = [['нет']]
+    # range_name = 'H3'
+    body = {
+        'values': [values]
+    }
+    result = service.spreadsheets().values().update(
+        spreadsheetId=spreadsheet_id, 
+        range=range_name,
+        valueInputOption='RAW', 
+        body=body
+    ).execute()
+    print('{0} cells updated.'.format(result.get('updatedCells')))
+
+
 def download_image_and_text(drive, image_data, text_data, folder):
 #The column number starts at 0    
     image_id = get_id_from_google_sheet_formula(image_data)
@@ -109,7 +124,11 @@ def main():
         gauth = GoogleAuth()
         gauth.LocalWebserverAuth() 
         drive = GoogleDrive(gauth)
-        for is_vk, is_telegram, is_fb, day, time, text_data, image_data, is_done in values:      
+        status_column_index = 'H'
+        status_row_start_index = 3
+        done_value = ['да']
+        for value_index, (is_vk, is_telegram, is_fb, day, time, text_data, \
+            image_data, is_done) in enumerate(values):      
             print(day, is_done)
             if day == "суббота" and is_done == "нет":
                 downloaded_files = download_image_and_text(
@@ -121,6 +140,7 @@ def main():
                 post_results = list(smm_posting.post_in_socials(
                     downloaded_files.get("text"),
                     downloaded_files.get("image"),
+                    is_vk, is_telegram, is_fb,
                     vk_token,
                     vk_group_id, 
                     vk_album_id,
@@ -131,6 +151,14 @@ def main():
                 ))
                 for result in post_results:
                     print(result)
+                status_row_index = status_row_start_index + value_index
+                print(f"Update cell: {status_column_index}{status_row_index}")
+                update_value_in_spreadsheet(
+                    service, 
+                    done_value, 
+                    f"{status_column_index}{status_row_index}", 
+                    SAMPLE_SPREADSHEET_ID
+                )
                       
         
 
