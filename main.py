@@ -16,10 +16,10 @@ import smm_posting
 
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
+SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a sample spreadsheet.
-SAMPLE_SPREADSHEET_ID = '17r4QRW_m0clut772bRnUL-U1-JiazImiZMm43SkgS9Q'
+SAMPLE_SPREADSHEET_ID = '1cFbpyL4MeptrJ2ZxbT2zwYt5EdpF9SXYBQwE77ePK7g'
 SAMPLE_RANGE_NAME = 'Лист1!A3:H14'
 
 
