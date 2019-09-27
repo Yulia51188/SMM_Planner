@@ -35,8 +35,9 @@ def validate_file(file_path):
         return (False, "File can't be open")   
 
 
-def post_in_socials(text_path, image_path, vk_token, vk_group_id, vk_album_id, 
-    telegram_bot_token, telegram_chat_id, fb_app_token, fb_group_id):
+def post_in_socials(text_path, image_path, is_vk, is_telegram, is_fb,
+    vk_token, vk_group_id, vk_album_id, telegram_bot_token, telegram_chat_id, 
+    fb_app_token, fb_group_id):
     is_image, image_file_error = validate_file(image_path) 
     if not is_image:
         yield f"Image {image_file_error}"
@@ -47,43 +48,46 @@ def post_in_socials(text_path, image_path, vk_token, vk_group_id, vk_album_id,
         return
     with open(text_path) as file:
         message = file.read()
-    try:
-        telegram_posting.post_to_telegram(
-            telegram_bot_token, 
-            telegram_chat_id,              
-            message,
-            image_path
-        ) 
-        yield "Post is published in Telegram."  
-    except ConnectionError as error:
-        yield f"TelegramPosting error: {error}"
-    except telegram_posting.TelegramPostingError as error:
-        yield error 
-    try:
-        fb_posting.post_to_fb(
-            fb_app_token, 
-            fb_group_id, 
-            message,
-            image_path
-        ) 
-        yield "Post is published in FB."  
-    except ConnectionError as error:
-        yield f"FBPosting error: {error}"
-    except fb_posting.FBPostingError as error:
-        yield error
-    try:
-        vk_posting.post_to_vk(
-            vk_token, 
-            vk_album_id,
-            vk_group_id,              
-            message,
-            image_path
-        ) 
-        yield "Post is published in VK."  
-    except ConnectionError as error:
-        yield f"VKPosting error: {error}"
-    except vk_posting.VKPostingError as error:
-        yield error  
+    if is_telegram:
+        try:
+            telegram_posting.post_to_telegram(
+                telegram_bot_token, 
+                telegram_chat_id,              
+                message,
+                image_path
+            ) 
+            yield "Post is published in Telegram."  
+        except ConnectionError as error:
+            yield f"TelegramPosting error: {error}"
+        except telegram_posting.TelegramPostingError as error:
+            yield error 
+    if is_fb:
+        try:
+            fb_posting.post_to_fb(
+                fb_app_token, 
+                fb_group_id, 
+                message,
+                image_path
+            ) 
+            yield "Post is published in FB."  
+        except ConnectionError as error:
+            yield f"FBPosting error: {error}"
+        except fb_posting.FBPostingError as error:
+            yield error
+    if is_vk:    
+        try:
+            vk_posting.post_to_vk(
+                vk_token, 
+                vk_album_id,
+                vk_group_id,              
+                message,
+                image_path
+            ) 
+            yield "Post is published in VK."  
+        except ConnectionError as error:
+            yield f"VKPosting error: {error}"
+        except vk_posting.VKPostingError as error:
+            yield error  
 
 
 def main():
@@ -99,6 +103,9 @@ def main():
     post_results = list(post_in_socials(
         args.text_file_path,
         args.image_file_path,
+        is_vk, 
+        is_telegram, 
+        is_fb,
         vk_token,
         vk_group_id, 
         vk_album_id,
