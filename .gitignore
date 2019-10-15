@@ -9,6 +9,13 @@ __pycache__/
 #Google Sheet API config
 credentials.json
 token.pickle
+client_secrets.json
+
+#Folders
+Images/
+Saturday/
+вторник/
+
 
 #Images and test files
 *.png
