@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 import smm_posting
 
 from datetime import datetime
+from time import sleep
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
@@ -101,19 +102,8 @@ def is_time_to_publish(day, time, is_done, weekdays):
         return True
     return False
     
-
-def main():
-    load_dotenv()
-    vk_token = os.getenv("VK_ACCESS_TOKEN")
-    vk_group_id = os.getenv("VK_GROUP_ID")
-    vk_album_id = os.getenv("VK_ALBUM_ID")
-    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-    telegram_chat_id = os.getenv("TELEGRAM_CHANNEL_ID")
-    fb_app_token = os.getenv("FB_APP_TOKEN")
-    fb_group_id = os.getenv("FB_GROUP_ID")
-
-
-
+def publish_post_sheduled(vk_token, vk_group_id, vk_album_id, 
+            telegram_bot_token, telegram_chat_id, fb_app_token, fb_group_id):
     """Shows basic usage of the Sheets API.
     Prints values from a sample spreadsheet.
     """
@@ -192,6 +182,24 @@ def main():
                     f"{status_column_index}{status_row_index}", 
                     SAMPLE_SPREADSHEET_ID
                 )
+
+
+def main():
+    load_dotenv()
+    vk_token = os.getenv("VK_ACCESS_TOKEN")
+    vk_group_id = os.getenv("VK_GROUP_ID")
+    vk_album_id = os.getenv("VK_ALBUM_ID")
+    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    telegram_chat_id = os.getenv("TELEGRAM_CHANNEL_ID")
+    fb_app_token = os.getenv("FB_APP_TOKEN")
+    fb_group_id = os.getenv("FB_GROUP_ID")
+    while True:
+        publish_post_sheduled(vk_token, vk_group_id, vk_album_id, 
+            telegram_bot_token, telegram_chat_id, fb_app_token, fb_group_id)
+        sleep(30)
+        print('Hi!')
+
+    
                       
         
 
