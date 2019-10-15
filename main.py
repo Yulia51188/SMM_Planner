@@ -68,6 +68,18 @@ def download_image_and_text(drive, image_data, text_data, folder):
     return {"image":image_file_path, "text":text_file_path}
 
 
+def convert_word_to_bool(string, yes_words = ('yes', '+', 'да'), 
+    no_words = ('no', '-', 'нет')):     
+    if string.lower() in yes_words:
+        print(f'Input: {string.lower()}, Output: Yes')
+        return True
+    if string.lower() in no_words: 
+        print(f'Input: {string.lower()}, Output: No')
+        return False
+    print(f'Input: {string.lower()}, Output: Exception')
+    raise ValueError (f'Unrecognized string: {string}')
+
+
 def main():
     load_dotenv()
     vk_token = os.getenv("VK_ACCESS_TOKEN")
@@ -116,11 +128,6 @@ def main():
     if not values:
         print('No data found.')
     else:
-        # print('Name, Major:')
-        # for row in values:
-        #     # Print columns A and E, which correspond to indices 0 and 4.
-        #     # print('%s, %s' % (row[0], row[4]))
-        #     print(row)
         gauth = GoogleAuth()
         gauth.LocalWebserverAuth() 
         drive = GoogleDrive(gauth)
@@ -129,8 +136,8 @@ def main():
         done_value = ['да']
         for value_index, (is_vk, is_telegram, is_fb, day, time, text_data, \
             image_data, is_done) in enumerate(values):      
-            print(day, is_done)
-            if day == "суббота" and is_done == "нет":
+            print(day, convert_word_to_bool(is_done))
+            if day == "суббота" and not convert_word_to_bool(is_done):
                 downloaded_files = download_image_and_text(
                     drive, 
                     image_data, 
@@ -140,7 +147,9 @@ def main():
                 post_results = list(smm_posting.post_in_socials(
                     downloaded_files.get("text"),
                     downloaded_files.get("image"),
-                    is_vk, is_telegram, is_fb,
+                    convert_word_to_bool(is_vk), 
+                    convert_word_to_bool(is_telegram), 
+                    convert_word_to_bool(is_fb),
                     vk_token,
                     vk_group_id, 
                     vk_album_id,
