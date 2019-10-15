@@ -1,6 +1,6 @@
 from __future__ import print_function
 import pickle
-import os.path
+import os
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -14,6 +14,7 @@ from urllib.parse import urlparse, parse_qs
 from dotenv import load_dotenv
 import smm_posting
 
+from datetime import datetime
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
@@ -22,6 +23,15 @@ SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 SAMPLE_SPREADSHEET_ID = '1cFbpyL4MeptrJ2ZxbT2zwYt5EdpF9SXYBQwE77ePK7g'
 SAMPLE_RANGE_NAME = 'Лист1!A3:H14'
 
+DAYS_OF_WEAK = {
+    0: 'Понедельник',
+    1: 'Вторник',
+    2: 'Среда',
+    3: 'Четверг',
+    4: 'Пятница',
+    5: 'Суббота',
+    6: 'Воскресение',
+}
 
 
 def get_id_from_google_sheet_formula(string):
@@ -52,6 +62,8 @@ def update_value_in_spreadsheet(service, values, range_name, spreadsheet_id):
 def download_image_and_text(drive, image_data, text_data, folder):
 #The column number starts at 0    
     image_id = get_id_from_google_sheet_formula(image_data)
+    if not os.path.exists(f'{folder}/'):
+        os.mkdir(folder)
     if image_id:
         image_file_obj = drive.CreateFile({"id": image_id})
         image_file_obj.GetContentFile(f"{folder}/{image_file_obj['title']}")
@@ -71,14 +83,24 @@ def download_image_and_text(drive, image_data, text_data, folder):
 def convert_word_to_bool(string, yes_words = ('yes', '+', 'да'), 
     no_words = ('no', '-', 'нет')):     
     if string.lower() in yes_words:
-        print(f'Input: {string.lower()}, Output: Yes')
         return True
     if string.lower() in no_words: 
-        print(f'Input: {string.lower()}, Output: No')
         return False
-    print(f'Input: {string.lower()}, Output: Exception')
     raise ValueError (f'Unrecognized string: {string}')
 
+
+def is_time_to_publish(day, time, is_done, weekdays):
+    if convert_word_to_bool(is_done):
+        return False
+    now = datetime.now()    
+    current_weekday = weekdays.get(now.weekday())
+    if current_weekday is None:
+        raise ValueError("Wrong argument weekdays, can't convert current date")
+    if current_weekday.lower() == day.lower() and now.hour == time: 
+        print(f'Today: {current_weekday}, {now.hour}, {time}')
+        return True
+    return False
+    
 
 def main():
     load_dotenv()
@@ -136,13 +158,15 @@ def main():
         done_value = ['да']
         for value_index, (is_vk, is_telegram, is_fb, day, time, text_data, \
             image_data, is_done) in enumerate(values):      
-            print(day, convert_word_to_bool(is_done))
-            if day == "суббота" and not convert_word_to_bool(is_done):
+            
+            if is_time_to_publish(day, time, is_done, DAYS_OF_WEAK):
+            #if day == "суббота" and not convert_word_to_bool(is_done):
+                print(day, convert_word_to_bool(is_done))
                 downloaded_files = download_image_and_text(
                     drive, 
                     image_data, 
                     text_data, 
-                    "Saturday"
+                    day
                 )
                 post_results = list(smm_posting.post_in_socials(
                     downloaded_files.get("text"),
