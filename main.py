@@ -112,6 +112,8 @@ def auth_to_google_drive():
 
 def publish_post_sheduled(vk_token, vk_group_id, vk_album_id, 
             telegram_bot_token, telegram_chat_id, fb_app_token, fb_group_id):
+def publish_post_sheduled(vk_keys, telegram_keys, fb_keys, spreadsheet_id, 
+    range_name):
     service, sheet = auth_to_google_spreadsheet()
     values = get_values_from_spreadsheet(service, sheet)
     drive = auth_to_google_drive()
@@ -140,13 +142,13 @@ def publish_post_sheduled(vk_token, vk_group_id, vk_album_id,
                     convert_word_to_bool(is_vk), 
                     convert_word_to_bool(is_telegram), 
                     convert_word_to_bool(is_fb),
-                    vk_token,
-                    vk_group_id, 
-                    vk_album_id,
-                    telegram_bot_token, 
-                    telegram_chat_id, 
-                    fb_app_token, 
-                    fb_group_id
+                    vk_keys.get('vk_token'),
+                    vk_keys.get('vk_group_id'), 
+                    vk_keys.get('vk_album_id'),
+                    telegram_keys.get('telegram_bot_token'), 
+                    telegram_keys.get('telegram_chat_id'), 
+                    fb_keys.get('fb_app_token'), 
+                    fb_keys.get('fb_group_id')
                 ))
                 for result in post_results:
                     print(result)
@@ -213,15 +215,23 @@ def get_values_from_spreadsheet(service, sheet):
 
 def main():
     load_dotenv()
-    vk_token = os.getenv("VK_ACCESS_TOKEN")
-    vk_group_id = os.getenv("VK_GROUP_ID")
-    vk_album_id = os.getenv("VK_ALBUM_ID")
-    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-    telegram_chat_id = os.getenv("TELEGRAM_CHANNEL_ID")
-    fb_app_token = os.getenv("FB_APP_TOKEN")
-    fb_group_id = os.getenv("FB_GROUP_ID")
-    publish_post_sheduled(vk_token, vk_group_id, vk_album_id, 
-        telegram_bot_token, telegram_chat_id, fb_app_token, fb_group_id)
+    vk_keys = {
+        'vk_token': os.getenv("VK_ACCESS_TOKEN"),
+        'vk_group_id': os.getenv("VK_GROUP_ID"),
+        'vk_album_id': os.getenv("VK_ALBUM_ID")
+    }
+    telegram_keys = {
+        'telegram_bot_token': os.getenv("TELEGRAM_BOT_TOKEN"),
+        'telegram_chat_id': os.getenv("TELEGRAM_CHANNEL_ID")
+    }
+    fb_keys = {
+        'fb_app_token': os.getenv("FB_APP_TOKEN"),
+        'fb_group_id': os.getenv("FB_GROUP_ID")
+    }
+    spreadsheet_id = os.getenv('SPREADSHEET_ID')
+    range_name = os.getenv('RANGE_NAME')
+    publish_post_sheduled(vk_keys, telegram_keys, fb_keys, spreadsheet_id, 
+        range_name)
 
 
     
