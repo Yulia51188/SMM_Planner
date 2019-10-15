@@ -6,6 +6,9 @@ import fb_posting
 import argparse
 from requests.exceptions import ConnectionError
 
+class PostingError(Exception):
+    pass
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -40,12 +43,10 @@ def post_in_socials(text_path, image_path, is_vk, is_telegram, is_fb,
     fb_app_token, fb_group_id):
     is_image, image_file_error = validate_file(image_path) 
     if not is_image:
-        yield f"Image {image_file_error}"
-        return
+        return f"Image {image_file_error}"
     is_text, text_file_error = validate_file(text_path) 
     if not is_text:
-        yield f"Text {text_file_error}"
-        return
+        return f"Text {text_file_error}"
     with open(text_path) as file:
         message = file.read()
     if is_telegram:
@@ -55,12 +56,11 @@ def post_in_socials(text_path, image_path, is_vk, is_telegram, is_fb,
                 telegram_chat_id,              
                 message,
                 image_path
-            ) 
-            yield "Post is published in Telegram."  
+            )  
         except ConnectionError as error:
-            yield f"TelegramPosting error: {error}"
+            return f"TelegramPosting error: {error}"
         except telegram_posting.TelegramPostingError as error:
-            yield error 
+            return error 
     if is_fb:
         try:
             fb_posting.post_to_fb(
@@ -69,11 +69,10 @@ def post_in_socials(text_path, image_path, is_vk, is_telegram, is_fb,
                 message,
                 image_path
             ) 
-            yield "Post is published in FB."  
         except ConnectionError as error:
-            yield f"FBPosting error: {error}"
+            return f"FBPosting error: {error}"
         except fb_posting.FBPostingError as error:
-            yield error
+            return error
     if is_vk:    
         try:
             vk_posting.post_to_vk(
@@ -83,11 +82,10 @@ def post_in_socials(text_path, image_path, is_vk, is_telegram, is_fb,
                 message,
                 image_path
             ) 
-            yield "Post is published in VK."  
         except ConnectionError as error:
-            yield f"VKPosting error: {error}"
+            return f"VKPosting error: {error}"
         except vk_posting.VKPostingError as error:
-            yield error  
+            return error  
 
 
 def main():
@@ -100,7 +98,7 @@ def main():
     telegram_chat_id = os.getenv("TELEGRAM_CHANNEL_ID")
     fb_app_token = os.getenv("FB_APP_TOKEN")
     fb_group_id = os.getenv("FB_GROUP_ID")
-    post_results = list(post_in_socials(
+    post_results = post_in_socials(
         args.text_file_path,
         args.image_file_path,
         is_vk, 
@@ -113,9 +111,8 @@ def main():
         telegram_chat_id, 
         fb_app_token, 
         fb_group_id
-    ))
-    for result in post_results:
-        print(result)
+    )
+    print(result)
 
 
 if __name__=='__main__':
