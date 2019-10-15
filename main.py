@@ -17,12 +17,12 @@ import smm_posting
 from datetime import datetime
 from time import sleep
 
+
+# import argparse
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
+# SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
 # The ID and range of a sample spreadsheet.
-SAMPLE_SPREADSHEET_ID = '1cFbpyL4MeptrJ2ZxbT2zwYt5EdpF9SXYBQwE77ePK7g'
-SAMPLE_RANGE_NAME = 'Лист1!A3:H14'
 
 SLEEP_TIME = 10
 
@@ -47,13 +47,13 @@ def get_id_from_google_sheet_formula(string):
             return id[0]
 
 
-def update_value_in_spreadsheet(service, values, range_name, spreadsheet_id):
+def update_value_in_spreadsheet(service, values, cells_range, spreadsheet_id):
     body = {
         'values': [values]
     }
     result = service.spreadsheets().values().update(
         spreadsheetId=spreadsheet_id, 
-        range=range_name,
+        range=cells_range,
         valueInputOption='RAW', 
         body=body
     ).execute()
@@ -110,25 +110,26 @@ def auth_to_google_drive():
     return (drive)
 
 
-def publish_post_sheduled(vk_token, vk_group_id, vk_album_id, 
-            telegram_bot_token, telegram_chat_id, fb_app_token, fb_group_id):
 def publish_post_sheduled(vk_keys, telegram_keys, fb_keys, spreadsheet_id, 
     range_name):
     service, sheet = auth_to_google_spreadsheet()
-    values = get_values_from_spreadsheet(service, sheet)
+    print('Done auth to spreadsheet')
+    values = get_values_from_spreadsheet(service, sheet, spreadsheet_id, 
+    range_name)
     drive = auth_to_google_drive()
+    print('Done auth to drive')
     status_column_index = 'H'
     status_row_start_index = 3
     done_value = ['да']
     while True:
-        values = get_values_from_spreadsheet(service, sheet)
+        values = get_values_from_spreadsheet(service, sheet, spreadsheet_id, 
+            range_name)
         if not values:
             print('NO DATA')
             continue
         for value_index, (is_vk, is_telegram, is_fb, day, time, text_data, \
             image_data, is_done) in enumerate(values):                  
             if is_time_to_publish(day, time, is_done, DAYS_OF_WEAK):
-        #if day == "суббота" and not convert_word_to_bool(is_done):
                 print(day, convert_word_to_bool(is_done))
                 downloaded_files = download_image_and_text(
                     drive, 
@@ -158,55 +159,38 @@ def publish_post_sheduled(vk_keys, telegram_keys, fb_keys, spreadsheet_id,
                     service, 
                     done_value, 
                     f"{status_column_index}{status_row_index}", 
-                    SAMPLE_SPREADSHEET_ID
+                    spreadsheet_id
                 )
         print('Sleeping...')
         sleep(SLEEP_TIME)
         print('Hi!')
         
 
-
-def auth_to_google_spreadsheet():
-    """Shows basic usage of the Sheets API.
-    Prints values from a sample spreadsheet.
-    """
+def auth_to_google_spreadsheet(token_filename='token.pickle', 
+    creds_filename='credentials.json', 
+    scopes='https://www.googleapis.com/auth/spreadsheets'):
     creds = None
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
+    if os.path.exists(token_filename):
+        with open(token_filename, 'rb') as token:
             creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
+                creds_filename, scopes)
             creds = flow.run_local_server(port=0)
-        # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
+        with open(token_filename, 'wb') as token:
             pickle.dump(creds, token)
-
     service = build('sheets', 'v4', credentials=creds)
-
-    # Call the Sheets API
     sheet = service.spreadsheets()
-    # result = sheet.values().get(
-    #     spreadsheetId=SAMPLE_SPREADSHEET_ID,
-    #     range=SAMPLE_RANGE_NAME, 
-    #     valueRenderOption='FORMULA'
-    # ).execute()
-    # values = result.get('values', [])
-    # return (values, service) 
     return (service, sheet)
 
 
-def get_values_from_spreadsheet(service, sheet):
+def get_values_from_spreadsheet(service, sheet, spreadsheet_id, range_name):
     result = sheet.values().get(
-        spreadsheetId=SAMPLE_SPREADSHEET_ID,
-        range=SAMPLE_RANGE_NAME, 
+        spreadsheetId=spreadsheet_id,
+        range=range_name, 
         valueRenderOption='FORMULA'
     ).execute()
     values = result.get('values', [])
