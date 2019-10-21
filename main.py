@@ -4,6 +4,9 @@ import os
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
+import google.auth.exceptions
+# from requests.exceptions import ConnectionError
+import httplib2
 
 
 from pydrive.drive import GoogleDrive
@@ -25,6 +28,7 @@ from time import sleep
 # The ID and range of a sample spreadsheet.
 
 SLEEP_TIME = 10
+EXCEPTION_SLEEP_TIME = 5
 
 DAYS_OF_WEAK = {
     0: 'Понедельник',
@@ -57,7 +61,7 @@ def update_value_in_spreadsheet(service, values, cells_range, spreadsheet_id):
         valueInputOption='RAW', 
         body=body
     ).execute()
-    print('{0} cells updated.'.format(result.get('updatedCells')))
+    # print('{0} cells updated.'.format(result.get('updatedCells')))
 
 
 def download_image_and_text(drive, image_data, text_data, folder):
@@ -98,7 +102,7 @@ def is_time_to_publish(day, time, is_done, weekdays):
     if current_weekday is None:
         raise ValueError("Wrong argument weekdays, can't convert current date")
     if current_weekday.lower() == day.lower() and now.hour == time: 
-        print(f'Today: {current_weekday}, {now.hour}, {time}')
+        # print(f'Today: {current_weekday}, {now.hour}, {time}')
         return True
     return False
 
@@ -110,61 +114,70 @@ def auth_to_google_drive():
     return (drive)
 
 
-def publish_post_sheduled(vk_keys, telegram_keys, fb_keys, spreadsheet_id, 
-    range_name):
-    service, sheet = auth_to_google_spreadsheet()
-    print('Done auth to spreadsheet')
-    values = get_values_from_spreadsheet(service, sheet, spreadsheet_id, 
-    range_name)
-    drive = auth_to_google_drive()
-    print('Done auth to drive')
-    status_column_index = 'H'
-    status_row_start_index = 3
-    done_value = ['да']
+def download_and_post(drive, service, spreadsheet_id, value, status_cell_name, 
+    vk_keys, telegram_keys, fb_keys, done_values=['да']):
+    (is_vk, is_telegram, is_fb, day, time, text_data, \
+        image_data, is_done) = value
+    downloaded_files = download_image_and_text(
+        drive, 
+        image_data, 
+        text_data, 
+        day
+    )
+    if not downloaded_files:
+        raise IOError("Can't download files: {image_data}, {text_data}")
+    post_errors = smm_posting.post_in_socials(
+        downloaded_files.get("text"),
+        downloaded_files.get("image"),
+        convert_word_to_bool(is_vk), 
+        convert_word_to_bool(is_telegram), 
+        convert_word_to_bool(is_fb),
+        vk_keys.get('vk_token'),
+        vk_keys.get('vk_group_id'), 
+        vk_keys.get('vk_album_id'),
+        telegram_keys.get('telegram_bot_token'), 
+        telegram_keys.get('telegram_chat_id'), 
+        fb_keys.get('fb_app_token'), 
+        fb_keys.get('fb_group_id')
+    )
+    if post_errors:
+        raise smm_posting.PostingError(post_errors)
+    # status_row_index = status_row_start_index + value_index
+    # print(f"Update cell: {status_column_index}{status_row_index}")
+    update_value_in_spreadsheet(
+        service, 
+        done_values, 
+        # f"{status_column_index}{status_row_index}", 
+        status_cell_name,
+        spreadsheet_id
+    )
+    return True
+
+
+def publish_post_sheduled(service, sheet, drive, vk_keys, telegram_keys, fb_keys, spreadsheet_id, 
+    range_name, status_column_index='H', status_row_start_index=3):
+
     while True:
         values = get_values_from_spreadsheet(service, sheet, spreadsheet_id, 
             range_name)
         if not values:
-            print('NO DATA')
+            print(f'No data received from spreadsheet at {datetime.now()}')
             continue
-        for value_index, (is_vk, is_telegram, is_fb, day, time, text_data, \
-            image_data, is_done) in enumerate(values):                  
+        for value_index, value in enumerate(values):                  
+            (is_vk, is_telegram, is_fb, day, time, text_data, \
+            image_data, is_done) = value
             if is_time_to_publish(day, time, is_done, DAYS_OF_WEAK):
-                print(day, convert_word_to_bool(is_done))
-                downloaded_files = download_image_and_text(
-                    drive, 
-                    image_data, 
-                    text_data, 
-                    day
-                )
-                post_results = list(smm_posting.post_in_socials(
-                    downloaded_files.get("text"),
-                    downloaded_files.get("image"),
-                    convert_word_to_bool(is_vk), 
-                    convert_word_to_bool(is_telegram), 
-                    convert_word_to_bool(is_fb),
-                    vk_keys.get('vk_token'),
-                    vk_keys.get('vk_group_id'), 
-                    vk_keys.get('vk_album_id'),
-                    telegram_keys.get('telegram_bot_token'), 
-                    telegram_keys.get('telegram_chat_id'), 
-                    fb_keys.get('fb_app_token'), 
-                    fb_keys.get('fb_group_id')
-                ))
-                for result in post_results:
-                    print(result)
                 status_row_index = status_row_start_index + value_index
-                print(f"Update cell: {status_column_index}{status_row_index}")
-                update_value_in_spreadsheet(
-                    service, 
-                    done_value, 
-                    f"{status_column_index}{status_row_index}", 
-                    spreadsheet_id
-                )
-        print('Sleeping...')
+                status_cell_name = f"{status_column_index}{status_row_index}"
+                result = download_and_post(drive, service, spreadsheet_id, 
+                    value, status_cell_name, vk_keys, telegram_keys, fb_keys)
+                if result:
+                    print(f'Post {status_row_index} is published as sheduled at '
+                        f'{datetime.now()}')      
         sleep(SLEEP_TIME)
-        print('Hi!')
         
+
+
 
 def auth_to_google_spreadsheet(token_filename='token.pickle', 
     creds_filename='credentials.json', 
@@ -214,15 +227,26 @@ def main():
     }
     spreadsheet_id = os.getenv('SPREADSHEET_ID')
     range_name = os.getenv('RANGE_NAME')
-    publish_post_sheduled(vk_keys, telegram_keys, fb_keys, spreadsheet_id, 
-        range_name)
-
-
-    
-                      
-        
-
-
+    try:
+        service, sheet = auth_to_google_spreadsheet()
+        drive = auth_to_google_drive()
+    except (google.auth.exceptions.TransportError, \
+            httplib2.ServerNotFoundError) as error:
+        exit(f"Connection error, program can't work:\n{error}")
+    while True:
+        try:
+            publish_post_sheduled(service, sheet, drive, vk_keys, 
+                telegram_keys, fb_keys, spreadsheet_id, range_name)
+        except (google.auth.exceptions.TransportError, \
+            httplib2.ServerNotFoundError, ConnectionError) as error:
+            print(f"Connection error, try to continue later:\n{error}") 
+            sleep(EXCEPTION_SLEEP_TIME)
+            try:
+                service, sheet = auth_to_google_spreadsheet()
+                drive = auth_to_google_drive()
+            except (google.auth.exceptions.TransportError, \
+                httplib2.ServerNotFoundError) as error:
+                exit(f"Connection error, program can't work:\n{error}")
 
 if __name__ == '__main__':
     main()
