@@ -1,20 +1,20 @@
 from __future__ import print_function
 import pickle
-import os
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-import google.auth.exceptions
-import httplib2
-from pydrive.drive import GoogleDrive
-from pydrive.auth import GoogleAuth
 from urllib.parse import urlparse, parse_qs
+import httplib2
 from dotenv import load_dotenv
 import smm_posting
 from datetime import datetime
 from time import sleep
 import argparse
+import os
 
+from googleapiclient.discovery import build
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+import google.auth.exceptions
+from pydrive.drive import GoogleDrive
+from pydrive.auth import GoogleAuth
 
 DAYS_OF_WEAK = {
     0: 'Понедельник',
@@ -25,6 +25,7 @@ DAYS_OF_WEAK = {
     5: 'Суббота',
     6: 'Воскресение',
 }
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Sheduled SMM posting')
