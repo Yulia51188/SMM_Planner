@@ -5,30 +5,16 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import google.auth.exceptions
-# from requests.exceptions import ConnectionError
 import httplib2
-
-
 from pydrive.drive import GoogleDrive
 from pydrive.auth import GoogleAuth
-
 from urllib.parse import urlparse, parse_qs
-
 from dotenv import load_dotenv
 import smm_posting
-
 from datetime import datetime
 from time import sleep
+import argparse
 
-
-# import argparse
-# If modifying these scopes, delete the file token.pickle.
-# SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
-
-# The ID and range of a sample spreadsheet.
-
-SLEEP_TIME = 10
-EXCEPTION_SLEEP_TIME = 5
 
 DAYS_OF_WEAK = {
     0: 'Понедельник',
@@ -39,6 +25,12 @@ DAYS_OF_WEAK = {
     5: 'Суббота',
     6: 'Воскресение',
 }
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Sheduled SMM posting')
+    parser.add_argument('--sleep_time', '-s', type=int, default=5,
+        help='Sleep time between shedule check')
+    return parser.parse_args()
 
 
 def get_id_from_google_sheet_formula(string):
@@ -61,11 +53,9 @@ def update_value_in_spreadsheet(service, values, cells_range, spreadsheet_id):
         valueInputOption='RAW', 
         body=body
     ).execute()
-    # print('{0} cells updated.'.format(result.get('updatedCells')))
 
 
 def download_image_and_text(gauth, image_data, text_data, folder):
-#The column number starts at 0    
     image_id = get_id_from_google_sheet_formula(image_data)
     drive = GoogleDrive(gauth)
     if not os.path.exists(f'{folder}/'):
@@ -101,32 +91,22 @@ def is_time_to_publish(day, time, is_done, weekdays):
     now = datetime.now()    
     current_weekday = weekdays.get(now.weekday())
     if current_weekday is None:
-        raise ValueError("Wrong argument weekdays, can't convert current date")
+        raise ValueError("Wrong argument 'weekdays', can't convert current date")
     if current_weekday.lower() == day.lower() and now.hour == time: 
-        # print(f'Today: {current_weekday}, {now.hour}, {time}')
         return True
     return False
 
 
 def auth_to_google_drive():
     gauth = GoogleAuth()
-    # Try to load saved client credentials
     gauth.LoadCredentialsFile("mycreds.json")
     if gauth.credentials is None:
-    # Authenticate if they're not there
         gauth.LocalWebserverAuth()
     elif gauth.access_token_expired:
-    # Refresh them if expired
         gauth.Refresh()
     else:
-    # Initialize the saved creds
         gauth.Authorize()
-# Save the current credentials to a file
     gauth.SaveCredentialsFile("mycreds.json")
-
-    # auth_url = gauth.GetAuthUrl() # Create authentication url user needs to visit
-    # code = AskUserToVisitLinkAndGiveCode(auth_url) # Your customized authentication flow
-    # gauth.Auth(code) # Authorize and build service from the code
     return gauth
 
 
@@ -158,12 +138,9 @@ def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
     )
     if post_errors:
         raise smm_posting.PostingError(post_errors)
-    # status_row_index = status_row_start_index + value_index
-    # print(f"Update cell: {status_column_index}{status_row_index}")
     update_value_in_spreadsheet(
         service, 
         done_values, 
-        # f"{status_column_index}{status_row_index}", 
         status_cell_name,
         spreadsheet_id
     )
@@ -172,7 +149,6 @@ def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
 
 def publish_post_sheduled(service, sheet, gauth, vk_keys, telegram_keys, fb_keys, spreadsheet_id, 
     range_name, status_column_index='H', status_row_start_index=3):
-
     values = get_values_from_spreadsheet(service, sheet, spreadsheet_id, 
         range_name)
     if not values:
@@ -186,10 +162,9 @@ def publish_post_sheduled(service, sheet, gauth, vk_keys, telegram_keys, fb_keys
             result = download_and_post(gauth, service, spreadsheet_id, 
                 value, status_cell_name, vk_keys, telegram_keys, fb_keys)
             if result:
-                print(f'Post {status_row_index} is published as sheduled at '
-                    f'{datetime.now()}')      
-        # sleep(SLEEP_TIME)     
-
+                return (f'Post {status_row_index} is published as sheduled at '
+                    f'{datetime.now()}' )    
+    
 
 def auth_to_google_spreadsheet(token_filename='token.pickle', 
     creds_filename='credentials.json', 
@@ -223,6 +198,7 @@ def get_values_from_spreadsheet(service, sheet, spreadsheet_id, range_name):
 
 
 def main():
+    args = parse_arguments()
     load_dotenv()
     vk_keys = {
         'vk_token': os.getenv("VK_ACCESS_TOKEN"),
@@ -244,16 +220,14 @@ def main():
         gauth = auth_to_google_drive()
     except (google.auth.exceptions.TransportError, \
             httplib2.ServerNotFoundError) as error:
-        exit(f"Authentication error, program can't work:\n{error}")
+        exit(f"Connection error, authentification failed:\n{error}")
+    except google.auth.exceptions.GoogleAuthError as error:
+        exit(f"Authentification error:\n{error}")
     while True:
-        try:
-            result = publish_post_sheduled(service, sheet, gauth, vk_keys, 
-                telegram_keys, fb_keys, spreadsheet_id, range_name)
-            print(result)
-            sleep(SLEEP_TIME) 
-        except Exception as error:
-            print(f"Connection error, try to continue later:\n{error}") 
-            sleep(EXCEPTION_SLEEP_TIME)
+        result = publish_post_sheduled(service, sheet, gauth, vk_keys, 
+            telegram_keys, fb_keys, spreadsheet_id, range_name)
+        if result: print(result)
+        sleep(args.sleep_time) 
 
 
 if __name__ == '__main__':
