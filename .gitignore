@@ -8,6 +8,7 @@ __pycache__/
 
 #Google Sheet API config
 credentials.json
+mycreds.json
 token.pickle
 client_secrets.json
 settings.yaml
@@ -16,6 +17,7 @@ settings.yaml
 Images/
 Saturday/
 вторник/
+среда/
 
 
 #Images and test files
