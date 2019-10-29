@@ -18,11 +18,18 @@ pip3 install -r requirements.txt
 ```
 
 # How to launch
-Launch main.py to publish post in three social media.  
+Launch main.py to publish post in social media corresponding to the shedule table, as table [here].  
 The example of launch in Ubuntu is:
 
 ```bash
-$ python3 main.py text.txt image.jpg
+$ python3 main.py -s 5
+Post 10 is published as sheduled at 2019-10-29 10:56:48.370317
+```
+You also can launch smm_posting.py with arguments text_file_path and image_file_path, as folowing:
+
+```bash
+$ python3 smm_posting.py среда/Обоняние среда/40df9364a4e00211880703cbf25c4351.jpg
+Post is published successfully
 ```
 The launch in Windows and OS is the same.
 
