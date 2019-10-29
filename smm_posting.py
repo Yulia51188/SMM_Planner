@@ -98,7 +98,10 @@ def main():
     telegram_chat_id = os.getenv("TELEGRAM_CHANNEL_ID")
     fb_app_token = os.getenv("FB_APP_TOKEN")
     fb_group_id = os.getenv("FB_GROUP_ID")
-    post_results = post_in_socials(
+    is_vk = True 
+    is_telegram = True  
+    is_fb = True 
+    post_error = post_in_socials(
         args.text_file_path,
         args.image_file_path,
         is_vk, 
@@ -112,7 +115,10 @@ def main():
         fb_app_token, 
         fb_group_id
     )
-    print(result)
+    if post_error: 
+        print(post_error)
+    else:
+        print('Post is published successfully')
 
 
 if __name__=='__main__':
