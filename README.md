@@ -19,7 +19,7 @@ pip3 install -r requirements.txt
 
 # How to launch
 Launch main.py to publish post in three social media.  
-The Example of launch in Ubunru is:
+The example of launch in Ubuntu is:
 
 ```bash
 $ python3 main.py text.txt image.jpg
