@@ -91,11 +91,9 @@ def is_time_to_publish(day, time, is_done, weekdays):
         return False
     now = datetime.now()    
     current_weekday = weekdays.get(now.weekday())
-    if current_weekday is None:
+    if not current_weekday:
         raise ValueError("Wrong argument 'weekdays', can't convert current date")
-    if current_weekday.lower() == day.lower() and now.hour == time: 
-        return True
-    return False
+    return (current_weekday.lower() == day.lower() and now.hour == time) 
 
 
 def auth_to_google_drive():
@@ -123,7 +121,7 @@ def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
     )
     if not downloaded_files:
         raise IOError("Can't download files: {image_data}, {text_data}")
-    post_errors = smm_posting.post_in_socials(
+    posting_error = smm_posting.post_in_socials(
         downloaded_files.get("text"),
         downloaded_files.get("image"),
         convert_word_to_bool(is_vk), 
@@ -137,8 +135,8 @@ def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
         fb_keys.get('fb_app_token'), 
         fb_keys.get('fb_group_id')
     )
-    if post_errors:
-        raise smm_posting.PostingError(post_errors)
+    if posting_error:
+        raise smm_posting.PostingError(posting_error)
     update_value_in_spreadsheet(
         service, 
         done_values, 
@@ -148,8 +146,9 @@ def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
     return True
 
 
-def publish_post_sheduled(service, sheet, gauth, vk_keys, telegram_keys, fb_keys, spreadsheet_id, 
-    range_name, status_column_index='H', status_row_start_index=3):
+def publish_post_sheduled(service, sheet, gauth, vk_keys, telegram_keys, 
+    fb_keys, spreadsheet_id, range_name, status_column_index='H', 
+    status_row_start_index=3):
     values = get_values_from_spreadsheet(service, sheet, spreadsheet_id, 
         range_name)
     if not values:
