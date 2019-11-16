@@ -12,18 +12,14 @@ def post_to_telegram(bot_token, chat_id, message, image_path):
         bot = telegram.Bot(token=bot_token)
         response = post_image_to_telegram(bot, chat_id, image_path)
         if not response.message_id:
-            raise TelegramPostingError("Error occured while posting of image:"
-                f"\n{response}")        
+            raise TelegramPostingError(f"TelegramPostingError: {response}")        
         response = post_text_to_telegram(bot, chat_id, message) 
         if not response.message_id:
-            raise TelegramPostingError("Error occured while posting of text:"
-                f"\n{response}")
+            raise TelegramPostingError(f"TelegramPostingError: {response}")
     except InvalidToken as error:
-        raise TelegramPostingError("Error occured while authentification "
-            f"in Telegram: {error}") 
-    except NetworkError as error:
-        raise TelegramPostingError("Error occured while posting in Telegram:"
-            f"\n{error}")
+        raise TelegramPostingError(f"TelegramPostingError: {error}") 
+    except (NetworkError, ConnectionError) as error:
+        raise TelegramPostingError(f"TelegramPostingError: {error}")
 
 
 def post_text_to_telegram(bot, chat_id, message):

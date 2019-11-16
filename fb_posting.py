@@ -7,15 +7,17 @@ class FBPostingError(Exception):
 
 
 def post_to_fb(token, group_id, message, image_path):
-    response = post_photo_and_text_to_fb(
-        token, 
-        group_id, 
-        message, 
-        image_path
-    )
+    try:
+        response = post_photo_and_text_to_fb(
+            token, 
+            group_id, 
+            message, 
+            image_path
+        )
+    except ConnectionError as error:
+        raise FBPostingError(error)
     if not response.ok or 'id' not in response.json().keys():
-        raise FBPostingError("Error occured, post can't be published in FB:\n"
-            f"{response.json()}")
+        raise FBPostingError(response.json())
     
 
 def post_photo_and_text_to_fb(token, group_id, message, image_path):

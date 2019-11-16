@@ -8,7 +8,8 @@ from datetime import datetime
 from time import sleep
 import argparse
 import os
-
+import re
+import warnings
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -23,7 +24,7 @@ DAYS_OF_WEAK = {
     3: 'Четверг',
     4: 'Пятница',
     5: 'Суббота',
-    6: 'Воскресение',
+    6: 'Воскресенье',
 }
 
 
@@ -44,9 +45,9 @@ def get_id_from_google_sheet_formula(string):
             return id[0]
 
 
-def update_value_in_spreadsheet(service, values, cells_range, spreadsheet_id):
+def update_value_in_spreadsheet(service, string, cells_range, spreadsheet_id):
     body = {
-        'values': [values]
+        'values': [[string]]
     }
     result = service.spreadsheets().values().update(
         spreadsheetId=spreadsheet_id, 
@@ -87,8 +88,11 @@ def convert_word_to_bool(string, yes_words = ('yes', '+', 'да'),
 
 
 def is_time_to_publish(day, time, is_done, weekdays):
-    if convert_word_to_bool(is_done):
-        return False
+    try:
+        if convert_word_to_bool(is_done):
+            return 
+    except ValueError:
+        return
     now = datetime.now()    
     current_weekday = weekdays.get(now.weekday())
     if not current_weekday:
@@ -96,21 +100,28 @@ def is_time_to_publish(day, time, is_done, weekdays):
     return (current_weekday.lower() == day.lower() and now.hour == time) 
 
 
-def auth_to_google_drive():
+def clear_creds_file(credentials_filename="mycreds.json"):
+    if os.path.exists(credentials_filename):
+        os.remove(credentials_filename)
+
+
+def auth_to_google_drive(credentials_filename="mycreds.json"):
     gauth = GoogleAuth()
-    gauth.LoadCredentialsFile("mycreds.json")
+    gauth.LoadCredentialsFile(credentials_filename)
     if gauth.credentials is None:
         gauth.LocalWebserverAuth()
     elif gauth.access_token_expired:
         gauth.Refresh()
     else:
         gauth.Authorize()
-    gauth.SaveCredentialsFile("mycreds.json")
+    gauth.SaveCredentialsFile(credentials_filename)
     return gauth
 
 
-def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name, 
-    vk_keys, telegram_keys, fb_keys, done_values=['да']):
+def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
+    vk_keys, telegram_keys, fb_keys, done_label='да', 
+    error_label='ошибка!'):
+    
     (is_vk, is_telegram, is_fb, day, time, text_data, \
         image_data, is_done) = value
     downloaded_files = download_image_and_text(
@@ -121,7 +132,7 @@ def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
     )
     if not downloaded_files:
         raise IOError("Can't download files: {image_data}, {text_data}")
-    posting_error = smm_posting.post_in_socials(
+    posting_errors = smm_posting.post_in_socials(
         downloaded_files.get("text"),
         downloaded_files.get("image"),
         convert_word_to_bool(is_vk), 
@@ -135,15 +146,24 @@ def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
         fb_keys.get('fb_app_token'), 
         fb_keys.get('fb_group_id')
     )
-    if posting_error:
-        raise smm_posting.PostingError(posting_error)
-    update_value_in_spreadsheet(
-        service, 
-        done_values, 
-        status_cell_name,
-        spreadsheet_id
-    )
-    return True
+    if any(posting_errors):
+        update_value_in_spreadsheet(
+            service, 
+            error_label, 
+            status_cell_name,
+            spreadsheet_id
+        )  
+        error_message_list = [error for error in posting_errors if error]
+        warnings.warn(f"Cell {status_cell_name}: {error_message_list}")
+        return False        
+    else:    
+        update_value_in_spreadsheet(
+            service, 
+            done_label, 
+            status_cell_name,
+            spreadsheet_id
+        )
+        return True
 
 
 def publish_post_sheduled(service, sheet, gauth, vk_keys, telegram_keys, 
@@ -163,7 +183,8 @@ def publish_post_sheduled(service, sheet, gauth, vk_keys, telegram_keys,
                 value, status_cell_name, vk_keys, telegram_keys, fb_keys)
             if result:
                 return (f'Post {status_row_index} is published as sheduled at '
-                    f'{datetime.now()}' )    
+                    f'{datetime.now()}' )  
+            # warnings.warn(f"Error occured while posting {status_row_index}")  
     
 
 def auth_to_google_spreadsheet(token_filename='token.pickle', 
