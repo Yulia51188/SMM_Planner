@@ -108,10 +108,8 @@ def clear_creds_file(credentials_filename="mycreds.json"):
 def auth_to_google_drive(credentials_filename="mycreds.json"):
     gauth = GoogleAuth()
     gauth.LoadCredentialsFile(credentials_filename)
-    if gauth.credentials is None:
+    if gauth.credentials is None or gauth.access_token_expired:
         gauth.LocalWebserverAuth()
-    elif gauth.access_token_expired:
-        gauth.Refresh()
     else:
         gauth.Authorize()
     gauth.SaveCredentialsFile(credentials_filename)
@@ -184,7 +182,6 @@ def publish_post_sheduled(service, sheet, gauth, vk_keys, telegram_keys,
             if result:
                 return (f'Post {status_row_index} is published as sheduled at '
                     f'{datetime.now()}' )  
-            # warnings.warn(f"Error occured while posting {status_row_index}")  
     
 
 def auth_to_google_spreadsheet(token_filename='token.pickle', 

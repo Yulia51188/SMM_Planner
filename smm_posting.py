@@ -6,9 +6,6 @@ import fb_posting
 import argparse
 from requests.exceptions import ConnectionError
 
-class PostingError(Exception):
-    pass
-
 
 def parse_arguments():
     parser = argparse.ArgumentParser(

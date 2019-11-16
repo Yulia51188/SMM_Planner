@@ -18,16 +18,15 @@ def post_to_vk(vk_token, album_id, group_id, message='', image_path=None,):
             image_path
         )
         if photo_upload_error:
-            raise VKPostingError("VKPostingError while uploading photo: "
-                f"{photo_upload_error}")
+            raise VKPostingError(f"{photo_upload_error}")
     except vk_api.exceptions.ApiError as error:
-        raise VKPostingError(f"VKPostingError while uploading photo: {error}")
+        raise VKPostingError(error)
     try:
         response = post_message_to_vk(vk, group_id, message, attachments)
         if not "post_id" in response.keys():
-            raise VKPostingError(f"VKPostingError while posting: {response}")
+            raise VKPostingError(response)
     except ConnectionError as error:
-        raise VKPostingError(f"VKPostingError while posting: {error}")
+        raise VKPostingError(error)
 
 
 def get_attachments(vk_session, album_id, group_id, image_path):
