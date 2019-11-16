@@ -20,13 +20,16 @@ pip3 install -r requirements.txt
 # How to launch
 Launch main.py to publish post in social media corresponding to the shedule table, as table [here].  
 The example of launch in Ubuntu is:
-
 ```bash
 $ python3 main.py -s 5
 Post 10 is published as sheduled at 2019-10-29 10:56:48.370317
 ```
+If there are some errors while posting, you see label 'ошибка' in the table and details in UserWarning:
+```bash
+$ python3 main.py
+main.py:157: UserWarning: Cell H5: [FBPostingError({'error': {'message': 'Error validating access token: Session has expired on Friday, 08-Nov-19 01:35:34 PST. The current time is Saturday, 16-Nov-19 13:33:59 PST.', 'type': 'OAuthException', 'code': 190, 'error_subcode': 463, 'fbtrace_id': 'ADJbY30tY_2qCW9sxzo2VRC'}},)]
+```
 You also can launch smm_posting.py with arguments text_file_path and image_file_path, as folowing:
-
 ```bash
 $ python3 smm_posting.py среда/Обоняние среда/40df9364a4e00211880703cbf25c4351.jpg
 Post is published successfully
