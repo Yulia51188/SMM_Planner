@@ -35,7 +35,8 @@ def validate_file(file_path):
         return (False, "MediaError: File can't be open")   
 
 
-def get_fb_posting_error(is_fb, fb_app_token, fb_group_id, message, image_path):
+def post_to_fb_with_exception_handling(is_fb, fb_app_token, fb_group_id, 
+    message, image_path):
     if not is_fb:
         return
     try:
@@ -49,7 +50,7 @@ def get_fb_posting_error(is_fb, fb_app_token, fb_group_id, message, image_path):
         return error
 
 
-def get_telegram_posting_error(is_telegram, telegram_bot_token, 
+def post_to_telegram_with_exception_handling(is_telegram, telegram_bot_token, 
     telegram_chat_id, message, image_path):
     if not is_telegram:
         return
@@ -64,8 +65,8 @@ def get_telegram_posting_error(is_telegram, telegram_bot_token,
         return error 
 
 
-def get_vk_posting_error(is_vk, vk_token, vk_album_id, vk_group_id, message,
-    image_path):
+def post_to_vk_with_exception_handling(is_vk, vk_token, vk_album_id, 
+    vk_group_id, message, image_path):
     if not is_vk:
         return   
     try:
@@ -99,11 +100,11 @@ def post_in_socials(text_path, image_path, is_vk, is_telegram, is_fb,
     if any(media_errors):
         return (media_errors)
     message = read_message(text_path)
-    telegram_posting_error = get_telegram_posting_error(is_telegram, 
+    telegram_posting_error = post_to_telegram_with_exception_handling(is_telegram, 
         telegram_bot_token, telegram_chat_id, message, image_path)
-    fb_posting_error = get_fb_posting_error(is_fb, fb_app_token, fb_group_id, 
+    fb_posting_error = post_to_fb_with_exception_handling(is_fb, fb_app_token, fb_group_id, 
         message, image_path)
-    vk_posting_error = get_vk_posting_error(is_vk, vk_token, vk_album_id, 
+    vk_posting_error = post_to_vk_with_exception_handling(is_vk, vk_token, vk_album_id, 
         vk_group_id, message, image_path)
     return (telegram_posting_error, fb_posting_error, vk_posting_error)
 

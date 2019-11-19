@@ -36,13 +36,15 @@ def parse_arguments():
 
 
 def get_id_from_google_sheet_formula(string):
+    if not '"'in string:
+        return
     url = string.split('"')[1]  
     parsed_url = urlparse(url)
     if parsed_url.query is not '': 
         query_dict = parse_qs(parsed_url.query)
-        id = query_dict.get("id")
-        if id:
-            return id[0]
+        document_id = query_dict.get("id")
+        if document_id:
+            return document_id[0]
 
 
 def update_value_in_spreadsheet(service, string, cells_range, spreadsheet_id):
@@ -97,7 +99,7 @@ def is_time_to_publish(day, time, is_done, weekdays):
     current_weekday = weekdays.get(now.weekday())
     if not current_weekday:
         raise ValueError("Wrong argument 'weekdays', can't convert current date")
-    return (current_weekday.lower() == day.lower() and now.hour == time) 
+    return current_weekday.lower() == day.lower() and now.hour == time 
 
 
 def clear_creds_file(credentials_filename="mycreds.json"):
@@ -116,11 +118,19 @@ def auth_to_google_drive(credentials_filename="mycreds.json"):
     return gauth
 
 
+def parse_is_need_to_post(string):
+    try:
+        is_need_to_post =convert_word_to_bool(string)
+    except ValueError:
+        is_need_to_post = False
+    return is_need_to_post
+
+
 def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
     vk_keys, telegram_keys, fb_keys, done_label='да', 
     error_label='ошибка!'):
     
-    (is_vk, is_telegram, is_fb, day, time, text_data, \
+    (done_vk, done_telegram, done_fb, day, time, text_data, \
         image_data, is_done) = value
     downloaded_files = download_image_and_text(
         gauth, 
@@ -133,9 +143,9 @@ def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
     posting_errors = smm_posting.post_in_socials(
         downloaded_files.get("text"),
         downloaded_files.get("image"),
-        convert_word_to_bool(is_vk), 
-        convert_word_to_bool(is_telegram), 
-        convert_word_to_bool(is_fb),
+        parse_is_need_to_post(done_vk), 
+        parse_is_need_to_post(done_telegram), 
+        parse_is_need_to_post(done_fb),
         vk_keys.get('vk_token'),
         vk_keys.get('vk_group_id'), 
         vk_keys.get('vk_album_id'),
@@ -164,24 +174,31 @@ def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
         return True
 
 
-def publish_post_sheduled(service, sheet, gauth, vk_keys, telegram_keys, 
-    fb_keys, spreadsheet_id, range_name, status_column_index='H', 
-    status_row_start_index=3):
+def publish_sheduled_post(service, sheet, gauth, vk_keys, telegram_keys, 
+    fb_keys, spreadsheet_id, range_name, status_column_index='H', status_row_start_index=3):
+    """ Thus function load values from google spreadsheet table, then check if
+    it is time to publish post and try to do it. 
+    The result is tuple (index, result, time), where 
+    - index is None if no data was loaded from table or row index of published
+    post;
+    - result (type bool), True if post published as sheduled or get values from
+    table but no post should be published at current time, False if any 
+    error occured;
+    - time is current time of posting  """
     values = get_values_from_spreadsheet(service, sheet, spreadsheet_id, 
         range_name)
     if not values:
-        return (f'No data received from spreadsheet at {datetime.now()}') 
+        return (None, False, datetime.now()) 
     for value_index, value in enumerate(values):                  
         (is_vk, is_telegram, is_fb, day, time, text_data, \
         image_data, is_done) = value
-        if is_time_to_publish(day, time, is_done, DAYS_OF_WEAK):
+        if is_time_to_publish(day, time, is_done, DAYS_OF_WEAK):            
             status_row_index = status_row_start_index + value_index
             status_cell_name = f"{status_column_index}{status_row_index}"
             result = download_and_post(gauth, service, spreadsheet_id, 
                 value, status_cell_name, vk_keys, telegram_keys, fb_keys)
-            if result:
-                return (f'Post {status_row_index} is published as sheduled at '
-                    f'{datetime.now()}' )  
+            return (status_row_index, result, datetime.now()) 
+    return (None, True, datetime.now()) 
     
 
 def auth_to_google_spreadsheet(token_filename='token.pickle', 
@@ -242,9 +259,24 @@ def main():
     except google.auth.exceptions.GoogleAuthError as error:
         exit(f"Authentification error:\n{error}")
     while True:
-        result = publish_post_sheduled(service, sheet, gauth, vk_keys, 
-            telegram_keys, fb_keys, spreadsheet_id, range_name)
-        if result: print(result)
+        post_index, posting_result, posting_time = publish_sheduled_post(
+            service, 
+            sheet, 
+            gauth, 
+            vk_keys, 
+            telegram_keys, 
+            fb_keys, 
+            spreadsheet_id, 
+            range_name
+        )
+        if not post_index and not posting_result: 
+            warnings.warn(f"No data loaded at {post_time}")
+        elif post_index and posting_result:
+            print(f"Post {post_index} is published successfully at "
+                f"{posting_time}")
+        elif post_index and not posting_result:
+            warnings.warn("Some errors occured while publishing post "
+                f"{post_index} at {posting_time}")
         sleep(args.sleep_time) 
 
 
