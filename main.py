@@ -99,7 +99,8 @@ def is_time_to_publish(day, time, is_done, weekdays):
     now = datetime.now()    
     current_weekday = weekdays.get(now.weekday())
     if not current_weekday:
-        raise ValueError("Wrong argument 'weekdays', can't convert current date")
+        raise ValueError("Wrong argument 'weekdays', can't convert current "
+            "date")
     return current_weekday.lower() == day.lower() and now.hour == time 
 
 
@@ -176,7 +177,8 @@ def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
 
 
 def publish_sheduled_post(service, sheet, gauth, vk_keys, telegram_keys, 
-    fb_keys, spreadsheet_id, range_name, status_column_index='H', status_row_start_index=3):
+    fb_keys, spreadsheet_id, range_name, status_column_index='H', 
+    status_row_start_index=3):
     """ Thus function load values from google spreadsheet table, then check if
     it is time to publish post and try to do it. 
     The result is tuple (index, result, time), where 
