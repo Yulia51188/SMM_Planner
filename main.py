@@ -62,11 +62,12 @@ def update_value_in_spreadsheet(service, string, cells_range, spreadsheet_id):
 def download_image_and_text(gauth, image_data, text_data, folder):
     image_id = get_id_from_google_sheet_formula(image_data)
     drive = GoogleDrive(gauth)
-    if not os.path.exists(f'{folder}/'):
-        os.mkdir(folder)
+    os.makedirs(folder, exist_ok=True)
     if image_id:
         image_file_obj = drive.CreateFile({"id": image_id})
-        image_file_obj.GetContentFile(f"{folder}/{image_file_obj['title']}")
+        image_file_obj.GetContentFile(
+            f"{os.path.join(folder, image_file_obj['title'])}"
+        )
         image_file_path = f"{folder}/{image_file_obj['title']}"
 
     text_id = get_id_from_google_sheet_formula(text_data)
@@ -77,7 +78,7 @@ def download_image_and_text(gauth, image_data, text_data, folder):
             'text/plain'
         )
         text_file_path = f"{folder}/{text_file_obj['title']}"
-    return {"image":image_file_path, "text":text_file_path}
+    return (image_file_path, text_file_path)
 
 
 def convert_word_to_bool(string, yes_words = ('yes', '+', 'да'), 
@@ -132,17 +133,17 @@ def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
     
     (done_vk, done_telegram, done_fb, day, time, text_data, \
         image_data, is_done) = value
-    downloaded_files = download_image_and_text(
+    image_file_path, text_file_path = download_image_and_text(
         gauth, 
         image_data, 
         text_data, 
         day
     )
-    if not downloaded_files:
-        raise IOError("Can't download files: {image_data}, {text_data}")
+    if not image_file_path or not text_file_path:
+        raise IOError(f"Can't download files: {image_data}, {text_data}")
     posting_errors = smm_posting.post_in_socials(
-        downloaded_files.get("text"),
-        downloaded_files.get("image"),
+        text_file_path,
+        image_file_path,         
         parse_is_need_to_post(done_vk), 
         parse_is_need_to_post(done_telegram), 
         parse_is_need_to_post(done_fb),
