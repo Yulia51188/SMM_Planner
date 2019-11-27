@@ -16,6 +16,8 @@ from google.auth.transport.requests import Request
 import google.auth.exceptions
 from pydrive.drive import GoogleDrive
 from pydrive.auth import GoogleAuth
+import tempfile
+
 
 DAYS_OF_WEAK = {
     0: 'Понедельник',
@@ -62,7 +64,6 @@ def update_value_in_spreadsheet(service, string, cells_range, spreadsheet_id):
 def download_image_and_text(gauth, image_data, text_data, folder):
     image_id = get_id_from_google_sheet_formula(image_data)
     drive = GoogleDrive(gauth)
-    os.makedirs(folder, exist_ok=True)
     if image_id:
         image_file_obj = drive.CreateFile({"id": image_id})
         image_file_obj.GetContentFile(
@@ -131,31 +132,31 @@ def parse_is_need_to_post(string):
 def download_and_post(gauth, service, spreadsheet_id, value, status_cell_name,
     vk_keys, telegram_keys, fb_keys, done_label='да', 
     error_label='ошибка!'):
-    
     (done_vk, done_telegram, done_fb, day, time, text_data, \
         image_data, is_done) = value
-    image_file_path, text_file_path = download_image_and_text(
-        gauth, 
-        image_data, 
-        text_data, 
-        day
-    )
-    if not image_file_path or not text_file_path:
-        raise IOError(f"Can't download files: {image_data}, {text_data}")
-    posting_errors = smm_posting.post_in_socials(
-        text_file_path,
-        image_file_path,         
-        parse_is_need_to_post(done_vk), 
-        parse_is_need_to_post(done_telegram), 
-        parse_is_need_to_post(done_fb),
-        vk_keys.get('vk_token'),
-        vk_keys.get('vk_group_id'), 
-        vk_keys.get('vk_album_id'),
-        telegram_keys.get('telegram_bot_token'), 
-        telegram_keys.get('telegram_chat_id'), 
-        fb_keys.get('fb_app_token'), 
-        fb_keys.get('fb_group_id')
-    )
+    with tempfile.TemporaryDirectory() as tmpdirname: 
+        image_file_path, text_file_path = download_image_and_text(
+            gauth, 
+            image_data, 
+            text_data, 
+            tmpdirname
+        )
+        if not image_file_path or not text_file_path:
+            raise IOError(f"Can't download files: {image_data}, {text_data}")
+        posting_errors = smm_posting.post_in_socials(
+            text_file_path,
+            image_file_path,         
+            parse_is_need_to_post(done_vk), 
+            parse_is_need_to_post(done_telegram), 
+            parse_is_need_to_post(done_fb),
+            vk_keys.get('vk_token'),
+            vk_keys.get('vk_group_id'), 
+            vk_keys.get('vk_album_id'),
+            telegram_keys.get('telegram_bot_token'), 
+            telegram_keys.get('telegram_chat_id'), 
+            fb_keys.get('fb_app_token'), 
+            fb_keys.get('fb_group_id')
+        )
     if any(posting_errors):
         update_value_in_spreadsheet(
             service, 
